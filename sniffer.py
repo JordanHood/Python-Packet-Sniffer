@@ -1,4 +1,4 @@
-
+#!/usr/bin/python3.6
 from struct import *
 from pypacker.layer567.rtp import RTP
 import socket
@@ -8,6 +8,7 @@ import time
 import argparse
 import pcapy
 import sys
+from pprint import pprint
 from networking.pcap import Pcap
 def main(args):
     logging.basicConfig(filename='wifispy.log', format='%(levelname)s:%(message)s', level=logging.INFO)
@@ -25,10 +26,12 @@ def main(args):
     else:
         timeout = 30
     timeout_start = time.time()
+    file = open('testfile','ab+') 
     while time.time() < timeout_start + timeout:
         (header, packet) = capture.next()
         print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
-        parse_packet(packet)
+        parse_packet(packet, file)
+    file.close()
     # got a capture of UDP packets, now to convert to best type
 
 
@@ -36,9 +39,8 @@ def main(args):
 def eth_addr (a) :
     b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (ord(a[0]) , ord(a[1]) , ord(a[2]), ord(a[3]), ord(a[4]) , ord(a[5]))
     return b
- 
 
-def parse_packet(packet) :
+def parse_packet(packet, file) :
     eth_length = 14
     eth_header = packet[:eth_length]
     eth = unpack('!6s6sH' , eth_header)
@@ -54,8 +56,8 @@ def parse_packet(packet) :
         iph_length = ihl * 4
         ttl = iph[5]
         protocol = iph[6]
-        s_addr = socket.inet_ntoa(iph[8]);
-        d_addr = socket.inet_ntoa(iph[9]);
+        s_addr = socket.inet_ntoa(iph[8])
+        d_addr = socket.inet_ntoa(iph[9])
  
         print ('Version : ' + str(version) + ', IP Header Length : ' + str(ihl) + ', TTL : ' + str(ttl) + ', Protocol : ' + str(protocol) + ', Source Address : ' + str(s_addr) + ', Destination Address : ' + str(d_addr))
         # #UDP packets
@@ -73,9 +75,19 @@ def parse_packet(packet) :
             data_size = len(packet) - h_size
             data = packet[h_size:]
             rtp = RTP(data)
-            print("rtp comming")
-            print(rtp)
-            print("\n\n")
+            # print("rtp commi/ng")
+            # pprint(vars(rtp))
+            # print("type")
+            # print(rtp.type)
+            # pprint(vars(rtp))
+            # print("rtp")
+            # print(rtp)
+            # print("\n\n")
+            # print("\n\n")
+            if(rtp._type == 32768):
+                file.write(rtp._body_bytes) 
+            #  8000 hz u-law stero
+            #  
             # get the RTP header length, the rest is the payload
             # logging.info('UPD data \n' + data)
             # print 'Data : ' + data
