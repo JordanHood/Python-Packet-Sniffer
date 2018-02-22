@@ -2,14 +2,14 @@
 import socket
 from struct import *
 import datetime
+import logging
 import time
 import argparse
 import pcapy
 import sys
-# from networking.ethernet import Ethernet
-# from networking.pcap import Pcap
-
+from networking.pcap import Pcap
 def main(args):
+    logging.basicConfig(filename='wifispy.log', format='%(levelname)s:%(message)s', level=logging.INFO)
     if args.interface:
         dev = args.interface
     else: 
@@ -24,10 +24,13 @@ def main(args):
     else:
         timeout = 30
     timeout_start = time.time()
+    pcap = Pcap('capture.pcap')
     while time.time() < timeout_start + timeout:
         (header, packet) = capture.next()
         print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
-        parse_packet(packet)
+        parse_packet(packet, pcap)
+    pcap.close()
+
 
 #Convert a string of 6 characters of ethernet address into a dash separated hex string
 def eth_addr (a) :
@@ -35,7 +38,7 @@ def eth_addr (a) :
     return b
  
 
-def parse_packet(packet) :
+def parse_packet(packet, pcap) :
     eth_length = 14
     eth_header = packet[:eth_length]
     eth = unpack('!6s6sH' , eth_header)
@@ -60,17 +63,21 @@ def parse_packet(packet) :
             u = iph_length + eth_length
             udph_length = 8
             udp_header = packet[u:u+8]
-            print(udp_header)
+            logging.info('UDP HEADER ' + udp_header)
+            # print('UDP HEADER ' + udp_header)
             udph = unpack('!HHHH' , udp_header)
             source_port = udph[0]
             dest_port = udph[1]
             length = udph[2]
             checksum = udph[3]
-            print 'Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Length : ' + str(length) + ' Checksum : ' + str(checksum)
+            print ('Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Length : ' + str(length) + ' Checksum : ' + str(checksum))
             h_size = eth_length + iph_length + udph_length
             data_size = len(packet) - h_size
             data = packet[h_size:]
-            print 'Data : ' + data
+            pcap.write(packet)
+            # logging.info('UPD data \n' + data)
+            # print 'Data : ' + data
+            
         # #TCP protocol
         # if protocol == 6 :
         #     t = iph_length + eth_length
