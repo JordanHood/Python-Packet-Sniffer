@@ -1,6 +1,7 @@
 
-import socket
 from struct import *
+from pypacker.layer567.rtp import RTP
+import socket
 import datetime
 import logging
 import time
@@ -17,19 +18,18 @@ def main(args):
         print ("Available devices are :")
         for d in pcapy.findalldevs() :
             print (d)
-        dev = raw_input("Enter device name to sniff : ")
+        dev = input("Enter device name to sniff : ")
     capture = pcapy.open_live(dev , 65536 , 1 , 0)
     if args.time:
         timeout = args.time
     else:
         timeout = 30
     timeout_start = time.time()
-    pcap = Pcap('capture.pcap')
     while time.time() < timeout_start + timeout:
         (header, packet) = capture.next()
         print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
-        parse_packet(packet, pcap)
-    pcap.close()
+        parse_packet(packet)
+    # got a capture of UDP packets, now to convert to best type
 
 
 #Convert a string of 6 characters of ethernet address into a dash separated hex string
@@ -38,12 +38,12 @@ def eth_addr (a) :
     return b
  
 
-def parse_packet(packet, pcap) :
+def parse_packet(packet) :
     eth_length = 14
     eth_header = packet[:eth_length]
     eth = unpack('!6s6sH' , eth_header)
     eth_protocol = socket.ntohs(eth[2])
-    print ('Destination MAC : ' + eth_addr(packet[0:6]) + ', Source MAC : ' + eth_addr(packet[6:12]) + ', Protocol : ' + str(eth_protocol))
+    # print ('Destination MAC : ' + eth_addr(packet[0:6]) + ', Source MAC : ' + eth_addr(packet[6:12]) + ', Protocol : ' + str(eth_protocol))
     #Parse IP packets, IP Protocol number = 8
     if eth_protocol == 8 :
         ip_header = packet[eth_length:20+eth_length]
@@ -63,8 +63,6 @@ def parse_packet(packet, pcap) :
             u = iph_length + eth_length
             udph_length = 8
             udp_header = packet[u:u+8]
-            logging.info('UDP HEADER ' + udp_header)
-            # print('UDP HEADER ' + udp_header)
             udph = unpack('!HHHH' , udp_header)
             source_port = udph[0]
             dest_port = udph[1]
@@ -74,7 +72,11 @@ def parse_packet(packet, pcap) :
             h_size = eth_length + iph_length + udph_length
             data_size = len(packet) - h_size
             data = packet[h_size:]
-            pcap.write(packet)
+            rtp = RTP(data)
+            print("rtp comming")
+            print(rtp)
+            print("\n\n")
+            # get the RTP header length, the rest is the payload
             # logging.info('UPD data \n' + data)
             # print 'Data : ' + data
             
