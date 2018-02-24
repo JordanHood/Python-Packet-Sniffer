@@ -1,38 +1,49 @@
 #!/usr/bin/python3.6
 from struct import *
 from pypacker.layer567.rtp import RTP
+import os
 import socket
 import datetime
+import time
 import time
 import argparse
 import pcapy
 import sys
+import random
+import multiprocessing
 import struct
 from pprint import pprint
+from networking.pcap import Pcap
 
 def main(args):
-    if args.interface:
-        dev = args.interface
-    else: 
-        #ask user to enter device name to sniff
-        print ("Available devices are :")
-        for d in pcapy.findalldevs() :
-            print (d)
-        dev = input("Enter device name to sniff : ")
-    capture = pcapy.open_live(dev , 65536 , 1 , 0)
-    if args.time:
-        timeout = args.time
-    else:
-        timeout = 30
-    timeout_start = time.time()
-    file = open('testfile.raw','ab+') 
-    while time.time() < timeout_start + timeout:
-        (header, packet) = capture.next()
-        print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
-        parse_packet(packet, file)
-    file.close()
-    convert_au()
-    # got a capture of UDP packets, now to convert to best type
+    try:
+        os.remove("testfile.raw")
+        os.remove("out.au")
+    except OSError:
+        pass
+    try:
+        if args.interface:
+            dev = args.interface
+        else: 
+            #ask user to enter device name to sniff
+            print ("Available devices are :")
+            for d in pcapy.findalldevs() :
+                print (d)
+            dev = input("Enter device name to sniff : ")
+        capture = pcapy.open_live(dev , 65536 , True , 0)
+        if args.time:
+            timeout = args.time
+        else:
+            timeout = 30
+        timeout_start = time.time()
+        file = open('testfile.raw','ab+') 
+        while time.time() < timeout_start + timeout:
+            (header, packet) = capture.next()
+            print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
+            parse_packet(packet, file)
+        file.close()
+        convert_au()
+    except KeyboardInterrupt: sys.exit()
 
 def convert_au():
     header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
@@ -85,73 +96,11 @@ def parse_packet(packet, file) :
             rtp = RTP(data)
             print('RTP Payload')
             print(rtp)
-            # print("rtp commi/ng")
-            # pprint(vars(rtp))
-            # print("type")
-            # print(rtp.type)
-            # pprint(vars(rtp))
-            # print("rtp")
-            # print(rtp)
-            # print("\n\n")
-            # print("\n\n")
+            # hack, this is temp 
             if(rtp._type == 32768):
                 file.write(rtp._body_bytes) 
-            #  8000 hz u-law stero
-            #  
-            # get the RTP header length, the rest is the payload
-            # print 'Data : ' + data
-            
-        # #TCP protocol
-        # if protocol == 6 :
-        #     t = iph_length + eth_length
-        #     tcp_header = packet[t:t+20]
- 
-        #     tcph = unpack('!HHLLBBHHH' , tcp_header)
-             
-        #     source_port = tcph[0]
-        #     dest_port = tcph[1]
-        #     sequence = tcph[2]
-        #     acknowledgement = tcph[3]
-        #     doff_reserved = tcph[4]
-        #     tcph_length = doff_reserved >> 4
-             
-        #     print 'Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Sequence Number : ' + str(sequence) + ' Acknowledgement : ' + str(acknowledgement) + ' TCP header length : ' + str(tcph_length)
-             
-        #     h_size = eth_length + iph_length + tcph_length * 4
-        #     data_size = len(packet) - h_size
-             
-        #     #get data from the packet
-        #     data = packet[h_size:]
-             
-        #     print 'Data : ' + data
- 
-        # #ICMP Packets
-        # elif protocol == 1 :
-        #     u = iph_length + eth_length
-        #     icmph_length = 4
-        #     icmp_header = packet[u:u+4]
- 
-        #     icmph = unpack('!BBH' , icmp_header)
-             
-        #     icmp_type = icmph[0]
-        #     code = icmph[1]
-        #     checksum = icmph[2]
-             
-        #     print 'Type : ' + str(icmp_type) + ' Code : ' + str(code) + ' Checksum : ' + str(checksum)
-             
-        #     h_size = eth_length + iph_length + icmph_length
-        #     data_size = len(packet) - h_size
-             
-        #     #get data from the packet
-        #     data = packet[h_size:]
-             
-        #     print 'Data : ' + data 
-        # #some other IP packet like IGMP
-        # else :
-        #     print 'Protocol other than TCP/UDP/ICMP'
-             
-        # print
- 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--time", help="The length of time to capture packets for", action="store",type=int, dest="time")
