@@ -3,15 +3,14 @@ from struct import *
 from pypacker.layer567.rtp import RTP
 import socket
 import datetime
-import logging
 import time
 import argparse
 import pcapy
 import sys
+import struct
 from pprint import pprint
-from networking.pcap import Pcap
+
 def main(args):
-    logging.basicConfig(filename='wifispy.log', format='%(levelname)s:%(message)s', level=logging.INFO)
     if args.interface:
         dev = args.interface
     else: 
@@ -26,13 +25,22 @@ def main(args):
     else:
         timeout = 30
     timeout_start = time.time()
-    file = open('testfile','ab+') 
+    file = open('testfile.raw','ab+') 
     while time.time() < timeout_start + timeout:
         (header, packet) = capture.next()
         print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
         parse_packet(packet, file)
     file.close()
+    convert_au()
     # got a capture of UDP packets, now to convert to best type
+
+def convert_au():
+    header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
+    au=open('out.au','wb')
+    au.write ( struct.pack ( ">IIIIII", *header ) )
+    raw = open('testfile.raw','rb').read()
+    au.write(raw)
+    au.close()
 
 
 #Convert a string of 6 characters of ethernet address into a dash separated hex string
@@ -75,6 +83,8 @@ def parse_packet(packet, file) :
             data_size = len(packet) - h_size
             data = packet[h_size:]
             rtp = RTP(data)
+            print('RTP Payload')
+            print(rtp)
             # print("rtp commi/ng")
             # pprint(vars(rtp))
             # print("type")
@@ -89,7 +99,6 @@ def parse_packet(packet, file) :
             #  8000 hz u-law stero
             #  
             # get the RTP header length, the rest is the payload
-            # logging.info('UPD data \n' + data)
             # print 'Data : ' + data
             
         # #TCP protocol
