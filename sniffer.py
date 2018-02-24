@@ -10,14 +10,18 @@ import argparse
 import pcapy
 import sys
 import random
-import multiprocessing
+import re
+import subprocess
 import struct
 from pprint import pprint
 from networking.pcap import Pcap
 
+file_types = {
+    32768: 'g771'
+}
+
 def main(args):
     try:
-        os.remove("testfile.raw")
         os.remove("out.au")
     except OSError:
         pass
@@ -36,22 +40,24 @@ def main(args):
         else:
             timeout = 30
         timeout_start = time.time()
-        file = open('testfile.raw','ab+') 
         while time.time() < timeout_start + timeout:
             (header, packet) = capture.next()
             print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
-            parse_packet(packet, file)
-        file.close()
+            parse_packet(packet)
         convert_au()
     except KeyboardInterrupt: sys.exit()
 
 def convert_au():
-    header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
-    au=open('out.au','wb')
-    au.write ( struct.pack ( ">IIIIII", *header ) )
-    raw = open('testfile.raw','rb').read()
-    au.write(raw)
-    au.close()
+    try:
+        header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
+        au=open('out.au','wb')
+        au.write ( struct.pack ( ">IIIIII", *header ) )
+        raw = open('outfile_g771.raw','rb').read()
+        au.write(raw)
+        au.close()
+        os.remove('outfile_g771.raw')
+    except OSError:
+        pass
 
 
 #Convert a string of 6 characters of ethernet address into a dash separated hex string
@@ -59,7 +65,7 @@ def eth_addr (a) :
     b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (ord(a[0]) , ord(a[1]) , ord(a[2]), ord(a[3]), ord(a[4]) , ord(a[5]))
     return b
 
-def parse_packet(packet, file) :
+def parse_packet(packet) :
     eth_length = 14
     eth_header = packet[:eth_length]
     eth = unpack('!6s6sH' , eth_header)
@@ -96,9 +102,19 @@ def parse_packet(packet, file) :
             rtp = RTP(data)
             print('RTP Payload')
             print(rtp)
-            # hack, this is temp 
-            if(rtp._type == 32768):
+            try:
+                # only convert packets with a type we understand
+                fileName = 'outfile_' + file_types[rtp._type] +'.raw'
+                print("apsonsdipv "+file_types[rtp._type])
+                file = open(fileName,'ab+') 
                 file.write(rtp._body_bytes) 
+                file.close()
+            except KeyError:
+                # Key is not present
+                print('error with ')
+                print(rtp._type)
+                pass
+            print('\n')
 
 
 if __name__ == "__main__":
