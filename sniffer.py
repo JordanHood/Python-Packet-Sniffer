@@ -1,20 +1,15 @@
 #!/usr/bin/python3.6
 from struct import *
 from pypacker.layer567.rtp import RTP
+from networking.pcap import Pcap
 import os
 import socket
 import datetime
 import time
-import time
 import argparse
 import pcapy
 import sys
-import random
-import re
-import subprocess
 import struct
-from pprint import pprint
-from networking.pcap import Pcap
 
 file_types = {
     32768: 'g771'
@@ -58,7 +53,6 @@ def convert_au():
         os.remove('outfile_g771.raw')
     except OSError:
         pass
-
 
 #Convert a string of 6 characters of ethernet address into a dash separated hex string
 def eth_addr (a) :
