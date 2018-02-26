@@ -1,7 +1,6 @@
 #!/usr/bin/python3.6
 from struct import *
 from pypacker.layer567.rtp import RTP
-from networking.pcap import Pcap
 import os
 import socket
 import datetime
@@ -10,6 +9,20 @@ import argparse
 import pcapy
 import sys
 import struct
+import multiprocessing
+import random
+
+# automate this
+
+# mac
+interface = 'en0'
+monitor_enable  = 'tcpdump -i {} -Ic1 -py IEEE802_11'
+monitor_disable = 'tcpdump -i {} -Ic1'
+
+# linux
+# interface = 'wlan1mon'
+# monitor_enable  = 'ifconfig wlan1 down; iw dev wlan1 interface add wlan1mon type monitor; ifconfig wlan1mon down; iw dev wlan1mon set type monitor; ifconfig wlan1mon up'
+# monitor_disable = 'iw dev wlan1mon del; ifconfig wlan1 up'
 
 file_types = {
     32768: 'g771'
@@ -17,7 +30,7 @@ file_types = {
 
 def main(args):
     try:
-        os.remove("out.au")
+        os.remove("out.au") 
     except OSError:
         pass
     try:
@@ -29,6 +42,10 @@ def main(args):
             for d in pcapy.findalldevs() :
                 print (d)
             dev = input("Enter device name to sniff : ")
+            try:
+                os.system(monitor_enable.format(dev))
+            except OSError as error:
+                print("OS error: {0}".format(error))
         capture = pcapy.open_live(dev , 65536 , True , 0)
         if args.time:
             timeout = args.time
@@ -40,7 +57,10 @@ def main(args):
             print ('%s: captured %d bytes, truncated to %d bytes' %(datetime.datetime.now(), header.getlen(), header.getcaplen()))
             parse_packet(packet)
         convert_au()
-    except KeyboardInterrupt: sys.exit()
+    except (KeyboardInterrupt): sys.exit()
+    finally:
+        os.system(monitor_disable.format(dev))
+
 
 def convert_au():
     try:
@@ -54,17 +74,11 @@ def convert_au():
     except OSError:
         pass
 
-#Convert a string of 6 characters of ethernet address into a dash separated hex string
-def eth_addr (a) :
-    b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (ord(a[0]) , ord(a[1]) , ord(a[2]), ord(a[3]), ord(a[4]) , ord(a[5]))
-    return b
-
 def parse_packet(packet) :
     eth_length = 14
     eth_header = packet[:eth_length]
     eth = unpack('!6s6sH' , eth_header)
     eth_protocol = socket.ntohs(eth[2])
-    # print ('Destination MAC : ' + eth_addr(packet[0:6]) + ', Source MAC : ' + eth_addr(packet[6:12]) + ', Protocol : ' + str(eth_protocol))
     #Parse IP packets, IP Protocol number = 8
     if eth_protocol == 8 :
         ip_header = packet[eth_length:20+eth_length]
@@ -94,22 +108,16 @@ def parse_packet(packet) :
             data_size = len(packet) - h_size
             data = packet[h_size:]
             rtp = RTP(data)
-            print('RTP Payload')
-            print(rtp)
             try:
                 # only convert packets with a type we understand
                 fileName = 'outfile_' + file_types[rtp._type] +'.raw'
-                print("apsonsdipv "+file_types[rtp._type])
                 file = open(fileName,'ab+') 
                 file.write(rtp._body_bytes) 
                 file.close()
             except KeyError:
                 # Key is not present
-                print('error with ')
-                print(rtp._type)
+                print('error with {}'.format(rtp._type))
                 pass
-            print('\n')
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
