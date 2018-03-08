@@ -11,18 +11,14 @@ import sys
 import struct
 import multiprocessing
 import random
+import platform
 
-# automate this
-
-# mac
-interface = 'en0'
-monitor_enable  = 'tcpdump -i {} -Ic1 -py IEEE802_11'
-monitor_disable = 'tcpdump -i {} -Ic1'
-
-# linux
-# interface = 'wlan1mon'
-# monitor_enable  = 'ifconfig wlan1 down; iw dev wlan1 interface add wlan1mon type monitor; ifconfig wlan1mon down; iw dev wlan1mon set type monitor; ifconfig wlan1mon up'
-# monitor_disable = 'iw dev wlan1mon del; ifconfig wlan1 up'
+if platform.system() is "Linux": 
+    monitor_enable  = 'ifconfig wlan1 down; iw dev wlan1 interface add wlan1mon type monitor; ifconfig wlan1mon down; iw dev wlan1mon set type monitor; ifconfig wlan1mon up'
+    monitor_disable = 'iw dev wlan1mon del; ifconfig wlan1 up'
+else:
+    monitor_enable  = 'tcpdump -i {} -Ic1 -py IEEE802_11'
+    monitor_disable = 'tcpdump -i {} -Ic1'
 
 file_types = {
     32768: 'g771'
@@ -45,7 +41,7 @@ def main(args):
             try:
                 os.system(monitor_enable.format(dev))
             except OSError as error:
-                print("OS error: {0}".format(error))
+                print("OS error: {}".format(error))
         capture = pcapy.open_live(dev , 65536 , True , 0)
         if args.time:
             timeout = args.time
@@ -65,9 +61,9 @@ def main(args):
 def convert_au():
     try:
         header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
+        raw = open('outfile_g771.raw','rb').read()
         au=open('out.au','wb')
         au.write ( struct.pack ( ">IIIIII", *header ) )
-        raw = open('outfile_g771.raw','rb').read()
         au.write(raw)
         au.close()
         os.remove('outfile_g771.raw')
