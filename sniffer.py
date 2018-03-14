@@ -12,6 +12,7 @@ import struct
 import multiprocessing
 import random
 import platform
+from pprint import pprint
 
 if platform.system() is "Linux": 
     monitor_enable  = 'ifconfig wlan1 down; iw dev wlan1 interface add wlan1mon type monitor; ifconfig wlan1mon down; iw dev wlan1mon set type monitor; ifconfig wlan1mon up'
@@ -62,11 +63,13 @@ def convert_au():
     try:
         header = [ 0x2e736e64, 24, 0xffffffff, 1, 8000, 1 ]
         raw = open('outfile_g771.raw','rb').read()
+        print(" Found G.771 raw file, converting to .au format")
         au=open('out.au','wb')
         au.write ( struct.pack ( ">IIIIII", *header ) )
         au.write(raw)
         au.close()
         os.remove('outfile_g771.raw')
+        print("G.771 Conversion finished, check local file system for out.au")
     except OSError:
         pass
 
@@ -106,14 +109,16 @@ def parse_packet(packet) :
             rtp = RTP(data)
             try:
                 # only convert packets with a type we understand
-                fileName = 'outfile_' + file_types[rtp._type] +'.raw'
+                fileName = 'outfile_' + file_types[rtp.type] +'.raw'
                 file = open(fileName,'ab+') 
                 file.write(rtp._body_bytes) 
                 file.close()
             except KeyError:
                 # Key is not present
-                print('error with {}'.format(rtp._type))
+                print('Error, RTP type {} is not known how to decode'.format(rtp.type))
                 pass
+        
+    print('\n')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
