@@ -14,12 +14,8 @@ import random
 import platform
 from pprint import pprint
 
-if platform.system() is "Linux": 
-    monitor_enable  = 'ifconfig wlan1 down; iw dev wlan1 interface add wlan1mon type monitor; ifconfig wlan1mon down; iw dev wlan1mon set type monitor; ifconfig wlan1mon up'
-    monitor_disable = 'iw dev wlan1mon del; ifconfig wlan1 up'
-else:
-    monitor_enable  = 'tcpdump -i {} -Ic1 -py IEEE802_11'
-    monitor_disable = 'tcpdump -i {} -Ic1'
+monitor_enable  = 'tcpdump -i {} -Ic1 -py IEEE802_11'
+monitor_disable = 'tcpdump -i {} -Ic1'
 
 file_types = {
     32768: 'g771'
